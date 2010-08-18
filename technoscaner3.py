@@ -243,10 +243,10 @@ def change_frame(frameNum):
     pixmap = frame[0]
     ipl_image = frame[1]
    
-    
-    matchPoints = findContourMatch(ipl_image, templateContour)
-    if len(matchPoints) > 0:
-        matchPoint = determinePoint(matchPoint, matchPoints, 10.0)
+    if templateContour != None:
+        matchPoints = findContourMatch(ipl_image, templateContour)
+        if len(matchPoints) > 0:
+            matchPoint = determinePoint(matchPoint, matchPoints, 10.0)
     
     # Add y coordinate of point to results
     results.append(  (  videoStorage.getFrameTime(frameNum), 
