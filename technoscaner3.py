@@ -146,7 +146,7 @@ def open_experiment():
     if frameCount > 0:
         mainForm.ui.timeSlider.setEnabled(True)
         mainForm.ui.timeSlider.setMaximum(frameCount-1)
-        mainForm.ui.timeSlider.setSliderPosition(0)
+        mainForm.ui.timeSlider.setValue(0)
     else:
         mainForm.ui.timeSlider.setMaximum(0)
         mainForm.ui.timeSlider.setEnabled(False)
