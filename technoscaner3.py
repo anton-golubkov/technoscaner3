@@ -146,7 +146,8 @@ def open_experiment():
     if frameCount > 0:
         mainForm.ui.timeSlider.setEnabled(True)
         mainForm.ui.timeSlider.setMaximum(frameCount-1)
-        mainForm.ui.timeSlider.setValue(0)
+        mainForm.ui.timeSlider.setValue(1)
+        mainForm.ui.timeSlider.emit(QtCore.SIGNAL("valueChanged(int)"), 1)
     else:
         mainForm.ui.timeSlider.setMaximum(0)
         mainForm.ui.timeSlider.setEnabled(False)
