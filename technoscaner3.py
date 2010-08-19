@@ -107,12 +107,6 @@ def load_template():
         mainForm.ui.templateImage.setPixmap(templatePixmap)
 
 
-    
-
-
-
-    
-
 
 def init_exp():
     global connection
