@@ -12,9 +12,7 @@ class Analyzer:
     """
     
     def __init__ (self, template):
-        """ Create internal memory storage"""
-        self._storage = cv.CreateMemStorage(0)
-        
+               
         self._trimg     = None
         self._grimg     = None
         self._result    = None
@@ -67,6 +65,9 @@ class Analyzer:
         Return list of points [(x1, y1), (x2, y2), ...]
         """
         
+        """ Create internal memory storage"""
+        storage = cv.CreateMemStorage(0)
+        
         # If size of analyzed image changes or temp images not created yet
         # we need to create temporary images
         if ( self._currentImageSize != cv.GetSize(srcimg) ) or ( self._trimg == None):
@@ -75,7 +76,7 @@ class Analyzer:
         cv.CvtColor(srcimg, self._grimg, cv.CV_RGB2GRAY)    
         cv.Threshold(self._grimg, self._trimg, 90, 255, cv.CV_THRESH_BINARY_INV);
 
-        contours = cv.FindContours(self._trimg, self._storage)
+        contours = cv.FindContours(self._trimg, storage)
         if len(contours) > 0:
             cv.Zero(self._grimg)
             contour = contours
@@ -91,7 +92,7 @@ class Analyzer:
         
         cv.ConvertScale( self._result, self._thresh, 255)
         cv.Threshold( self._thresh, self._thresh, 230, 255, cv.CV_THRESH_BINARY);
-        contours = cv.FindContours( self._thresh, self._storage)
+        contours = cv.FindContours( self._thresh, storage)
         match_points = []
         if len(contours) > 0:
             contour = contours
@@ -99,6 +100,9 @@ class Analyzer:
                 brect = cv.BoundingRect(contour)
                 match_points.append((brect[0] + self._template.width/2, brect[1]+self._template.height/2))
                 contour = contour.h_next()
+        """ Release internal memory storage"""
+
+        del contours
         return match_points
 
 
@@ -148,7 +152,7 @@ class Analyzer:
         
         trPoints = self._trimPointsByDistance(prevPoint, matchPoints, inertiaDistance + self._inertiaPenalty)
         if len(trPoints) > 0:
-            self._inertiaPenalty = 0center
+            self._inertiaPenalty = 0
             return self._nearestPoint(prevPoint, trPoints)
         else:
             # Nearest point not found, increase inertia penalty and return previous point

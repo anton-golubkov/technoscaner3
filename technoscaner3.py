@@ -88,7 +88,6 @@ class DbFrameStorage():
             # Create QPixmap from image data
             qpixmap = QtGui.QPixmap()
             qpixmap.loadFromData(frame)
-
             return (qpixmap, ipl_image)
         else:
             self._current_frame = 0
@@ -192,21 +191,29 @@ def pause_video():
     global mainForm
     mainForm.timer.stop()
 
-def save_results():
+def save_results_from_gui():
     global results
     global connection
     global videoStorage
+    save_results(results, connection, videoStorage.getExpId(), videoStorage.getCamId())
     
+
+def save_results(results, connection, expId, camId):
     cursor = connection.cursor()
-    
-    cursor.execute("INSERT INTO results_directory (type, description, experiment_id, analizator_id, sensor_id) VALUES( %s, %s, %s, %s, %s);", ("h", "h ts3", videoStorage.getExpId(), 0, videoStorage.getCamId()) )
+    cursor.execute("""INSERT INTO results_directory 
+        (type, description, experiment_id, analizator_id, sensor_id) 
+        VALUES( %s, %s, %s, %s, %s);""", 
+        ("h", "h ts3", expId, 0, camId) )
     
     cursor.execute("SELECT LAST_INSERT_ID()")
     resultId = cursor.fetchone()[0]
     
     for i, item in enumerate(results):
-        cursor.execute("INSERT INTO results (time, value, frame_id, distance_from_origin, result_id) VALUES (%s, %s, %s, %s, %s);", 
-                       (item[0], item[1], item[2], i, resultId) )
+        cursor.execute("""INSERT INTO results 
+            (time, value, frame_id, distance_from_origin, result_id) 
+            VALUES (%s, %s, %s, %s, %s);""", 
+            (item[0], item[1], item[2], i, resultId) )
+    
 
 class MainForm(QtGui.QWidget):
     def __init__(self, parent=None):
@@ -230,9 +237,67 @@ class MainForm(QtGui.QWidget):
         QtCore.QObject.connect(self.ui.pauseButton, QtCore.SIGNAL("clicked()"),
             pause_video)
         QtCore.QObject.connect(self.ui.saveResultsButton, QtCore.SIGNAL("clicked()"),
-            save_results)
+            save_results_from_gui)
 
 
+
+def startCli(argv):
+    """ 
+    Command line interface version of programm
+    
+    Run analyze in batch mode, using parameters from config.py:
+    cli_sensor_list - list of sensors
+    cli_experiment_list - list of experiments
+    cli_template_image - template image
+    """
+    global videoStorage
+    global connection
+    
+    config = __import__('config')
+    cli_sensor_list = 		getattr(config, 'cli_sensor_list', [])
+    cli_experiment_list =   getattr(config, 'cli_experiment_list', [])
+    cli_template_image = 	getattr(config, 'cli_template_image', '')
+    template = cv.LoadImage(cli_template_image, cv.CV_LOAD_IMAGE_GRAYSCALE)
+    analyzer = Analyzer(template)
+    for experiment in cli_experiment_list:
+        print "Start analyze experiment %s ..." % experiment
+        for sensor in cli_sensor_list:
+            print "Sensor %s" % sensor
+            results = []
+            videoStorage.open(experiment, sensor)
+            frameCount = videoStorage.getFrameCount()
+            for frameNum in xrange( frameCount ):
+                print "%s / %s" % (frameNum, frameCount)
+                image = videoStorage.getFrame(frameNum)
+                matchPoint = analyzer.findObject(image[1])
+                # Add y coordinate of point to results
+                results.append(  (  videoStorage.getFrameTime(frameNum), 
+                        image[0].height() - matchPoint[1], 
+                        videoStorage.getFrameId(frameNum) )  )
+            save_results(results, connection, experiment, sensor)
+            print "End analyze sensor %s" % sensor
+        print "End analyze experiment %s" % experiment
+        print "------------------------------"          
+                
+    
+    
+    
+    
+def startGui(argv):
+    """
+    GUI version of programm
+    
+    """
+    global mainForm
+    
+    
+    mainForm = MainForm()
+    init_exp()
+    update_cam_list(0)
+    mainForm.ui.timeSlider.setEnabled(False)
+    mainForm.show()
+    sys.exit(app.exec_())
+    
             
 if __name__ == "__main__":
     # read config
@@ -249,13 +314,9 @@ if __name__ == "__main__":
                             db = database,
     						use_unicode = True,
     						charset = "utf8")
-    
-    app = QtGui.QApplication(sys.argv)
-    mainForm = MainForm()
-    init_exp()
-    update_cam_list(0)
     videoStorage = DbFrameStorage(connection)
-    mainForm.ui.timeSlider.setEnabled(False)
-    mainForm.show()
-    sys.exit(app.exec_())
+    app = QtGui.QApplication(sys.argv)
+    
+    startCli(sys.argv)
+
 
