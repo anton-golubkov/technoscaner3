@@ -25,13 +25,32 @@ class Analyzer:
 
         
         # Grow when no matching point found
-        self._inertionPenalty = 0
+        self._inertiaPenalty = 0
         
         # Size of analyzed image 
         # when size is changed we need recreate temporary images
         self._currentImageSize = (0, 0)
     
+    
+    def findObject(self, image):
+        """ 
+        Find object coordinates in image
+        
+        Return (x, y) coordinates of objects if find, 
+        otherwise previous matching point
+        """ 
+        matchPoints = self._findTemplateMatchPoints(image)
+        if len(matchPoints) > 0:
+            matchPoint = self._determinePoint(self._prevMatchPoint, matchPoints, 10.0)
+            self._prevMatchPoint = matchPoint
+        return self._prevMatchPoint
+        
+        
+        
+    
     def _createTempImages(self, imageSize):
+        """ Create images, necessary for recognition algorithm """
+        
         self._trimg = cv.CreateImage(imageSize, cv.IPL_DEPTH_8U, 1)
         self._grimg = cv.CreateImage(imageSize, cv.IPL_DEPTH_8U, 1)
         rwidth = imageSize[0] - self._template.width + 1;
@@ -41,7 +60,7 @@ class Analyzer:
         
         
         
-    def _findContourMatch(self, srcimg):
+    def _findTemplateMatchPoints(self, srcimg):
         """ 
         Find all points in srcimg that matches self._template 
         
@@ -84,16 +103,29 @@ class Analyzer:
 
 
     def _distance(self, p1, p2):
+        """ Calculate distance between two points """
+        
         return math.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
     
+    
     def _trimPointsByDistance(self, originPoint, points, trimDistance):
+        """ 
+        Find points laying close to originPoint
+        
+        Returns set of points, that laying in circle 
+        with radius trimDistance and center in originPoint
+        """
+    
         retPoints = []
         for point in points:
             if self._distance(originPoint, point) <= trimDistance:
                 retPoints.append(point)
         return retPoints
     
+    
     def _nearestPoint(self, originPoint, points):
+        """ Find point closest to originPoint in set of points"""
+        
         dstList = []
         for point in points:
             dstList.append( self._distance(originPoint, point))
@@ -104,28 +136,23 @@ class Analyzer:
                 iMax = i
         return points[iMax]
         
-    def findObject(self, image):
-        """ 
-        Find object coordinates in image
-        
-        Return (x, y) coordinates of objects if find, 
-        otherwise previous matching point
-        """ 
-        matchPoints = self._findContourMatch(image)
-        if len(matchPoints) > 0:
-            matchPoint = self._determinePoint(self._prevMatchPoint, matchPoints, 10.0)
-            self._prevMatchPoint = matchPoint
-        return self._prevMatchPoint
-        
 
-    def _determinePoint(self, prevPoint, matchPoints, inertionDistance):
-        trPoints = self._trimPointsByDistance(prevPoint, matchPoints, inertionDistance + self._inertionPenalty)
+    def _determinePoint(self, prevPoint, matchPoints, inertiaDistance):
+        """ Select best matching point from matched points set
+        
+            Algorithm using inertiaPenalty - when new point laying
+            far from previous matching point returning previous point
+            and inertiaPenalty increased, 
+            so in next time area of allowed points increased
+        """
+        
+        trPoints = self._trimPointsByDistance(prevPoint, matchPoints, inertiaDistance + self._inertiaPenalty)
         if len(trPoints) > 0:
-            self._inertionPenalty = 0
+            self._inertiaPenalty = 0center
             return self._nearestPoint(prevPoint, trPoints)
         else:
-            # Nearest point not found, increase inertion penalty and return previous point
-            self._inertionPenalty = self._inertionPenalty + inertionDistance
+            # Nearest point not found, increase inertia penalty and return previous point
+            self._inertiaPenalty = self._inertiaPenalty + inertiaDistance
             return prevPoint
 
 
