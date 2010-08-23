@@ -7,10 +7,11 @@ import MySQLdb
 import cv
 import sys
 from PyQt4 import QtGui, QtCore
-from mainform import Ui_Form
 from PIL import Image
 import StringIO
 
+from mainform import Ui_Form
+from analyzer import Analyzer
 
 ### Global variables ###
 
@@ -23,17 +24,18 @@ connection = None
 # Video-frames storage
 videoStorage = None
 
-# Template image, used to find objects on image
-templateContour = None
+# Image analyzer
+analyzer = None
 
 # Timer interval, ms
 timerInterval = 10
-
 
 # Recognized results list [(time, value, frame_id), ...]
 results = []
 
 class DbFrameStorage():
+    """ Interface for acessing video from database """
+    """ Video stored in table 'video' with columns (id, frame, time, experiment_id, sensor_id)"""
     def __init__(self, connection):
         self._connection = connection
         self._id_cursor = self._connection.cursor()
@@ -43,6 +45,7 @@ class DbFrameStorage():
         self._time = []
         
     def open(self, expId, camId):
+        """ Loads all frame id's from database with specified experiment_id and sensor_id """
         self._current_frame = 0
         self._id_cursor.execute("SELECT id, time from video where experiment_id = %s and sensor_id = %s", (expId, camId) )
         self._id = []
@@ -94,14 +97,16 @@ class DbFrameStorage():
 
 	
 def load_template():
+    """ Loads template image into global variable templateContour for matching objects in video """
     global mainForm
-    global templateContour
+    global analyzer
     fileName = QtGui.QFileDialog.getOpenFileName(mainForm, 
                                                  "Select template"
                                                  ".",
                                                  "Images (*.png *.xpm *.jpg *.bmp)")
     if len(fileName) > 0:
         templateContour = cv.LoadImage( unicode(fileName).encode("utf-8") , cv.CV_LOAD_IMAGE_GRAYSCALE)
+        analyzer = Analyzer(templateContour)
         templatePixmap = QtGui.QPixmap()
         templatePixmap.load(fileName)
         mainForm.ui.templateImage.setPixmap(templatePixmap)
@@ -109,6 +114,7 @@ def load_template():
 
 
 def init_exp():
+    """ Load list of all experiments from database"""
     global connection
     global mainForm
     cursor = connection.cursor()
@@ -148,111 +154,29 @@ def open_experiment():
         
 
 
-
-
-def findContourMatch(srcimg, template):
-
-	storage = cv.CreateMemStorage(0)
-	trimg = cv.CreateImage(cv.GetSize(srcimg), cv.IPL_DEPTH_8U, 1)
-	grimg = cv.CreateImage(cv.GetSize(srcimg), cv.IPL_DEPTH_8U, 1)
-	cv.CvtColor(srcimg, grimg, cv.CV_RGB2GRAY)	
-
-	cv.Threshold(grimg,trimg, 90, 255, cv.CV_THRESH_BINARY_INV);
-
-	contours = cv.FindContours(trimg, storage)
-	if len(contours) > 0:
-		cv.Zero(grimg)
-		contour = contours
-		while contour != None:
-			area = cv.ContourArea(contour)
-			if area > 300:
-				cv.DrawContours(grimg, contour, (255, 255, 255), (255, 255, 255), -1)			
-			contour = contour.h_next()
-	rwidth = srcimg.width - template.width + 1;
-	rheight = srcimg.height - template.height + 1;
-
-	result = cv.CreateImage((rwidth, rheight), cv.IPL_DEPTH_32F, 1)
-	cv.MatchTemplate( grimg, template, result, cv.CV_TM_CCORR_NORMED)
-	cv.Normalize(result, result, 1, 0, cv.CV_MINMAX)
-	cv.Pow(result, result, 3)
-
-	thresh = cv.CreateImage(cv.GetSize(result), cv.IPL_DEPTH_8U, 1)
-	cv.ConvertScale(result, thresh, 255)
-	cv.Threshold(thresh, thresh, 230, 255, cv.CV_THRESH_BINARY);
-	contours = cv.FindContours(thresh, storage)
-	match_points = []
-	if len(contours) > 0:
-		contour = contours
-		while contour != None:
-			brect = cv.BoundingRect(contour)
-			match_points.append((brect[0] + template.width/2, brect[1]+template.height/2 + -30))
-			contour = contour.h_next()
-	return match_points
-
-
-def distance(p1, p2):
-	return math.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
-	
-def trimPointsByDistance(originPoint, points, trimDistance):
-	retPoints = []
-	for point in points:
-		if distance(originPoint, point) <= trimDistance:
-			retPoints.append(point)
-	return retPoints
-	
-def nearestPoint(originPoint, points):
-	dstList = []
-	for point in points:
-		dstList.append(distance(originPoint, point))
-
-	iMax = 0
-	for i, dst in enumerate(dstList):
-		if dstList[iMax] < dst:
-			iMax = i
-	return points[iMax]
-		
-
-# Растет, когда следующая точка не попадает в область инерции
-inertionPenalty = 0
-def determinePoint(prevPoint, matchPoints, inertionDistance):
-	global inertionPenalty
-	trPoints = trimPointsByDistance(prevPoint, matchPoints, inertionDistance + inertionPenalty)
-	if len(trPoints) > 0:
-		inertionPenalty = 0
-		return nearestPoint(prevPoint, trPoints)
-	else:
-	# Ближайших точек нет, увеличиваем штраф инерции и оставляем текущую точку в качестве результата
-		inertionPenalty = inertionPenalty + inertionDistance
-		return prevPoint
-	
-
-matchPoint = (0, 0)
 def change_frame(frameNum):
     global mainForm
     global videoStorage
     global matchPoint
-    global templateContour
+    global analyzer
     global results
     
     frame = videoStorage.getFrame(frameNum)
     pixmap = frame[0]
     ipl_image = frame[1]
    
-    if templateContour != None:
-        matchPoints = findContourMatch(ipl_image, templateContour)
-        if len(matchPoints) > 0:
-            matchPoint = determinePoint(matchPoint, matchPoints, 10.0)
-    
-    # Add y coordinate of point to results
-    results.append(  (  videoStorage.getFrameTime(frameNum), 
+    if analyzer != None:
+        matchPoint = analyzer.findObject(ipl_image)
+        # Add y coordinate of point to results
+        results.append(  (  videoStorage.getFrameTime(frameNum), 
                         pixmap.height() - matchPoint[1], 
                         videoStorage.getFrameId(frameNum) )  )
 
-    painter = QtGui.QPainter()
-    painter.begin(pixmap)
-#    painter.setPen( red )
-    painter.drawEllipse( matchPoint[0], matchPoint[1], 20,20 )
-    painter.end()
+        painter = QtGui.QPainter()
+        painter.begin(pixmap)
+        #    painter.setPen( red )
+        painter.drawEllipse( matchPoint[0], matchPoint[1], 20,20 )
+        painter.end()
     mainForm.ui.image.setPixmap(pixmap)
 
 def timer_tick():
