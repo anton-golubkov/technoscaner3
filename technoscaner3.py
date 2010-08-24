@@ -9,6 +9,10 @@ import sys
 from PyQt4 import QtGui, QtCore
 from PIL import Image
 import StringIO
+from progressbar import ProgressBar, Percentage, Bar
+
+
+
 
 from mainform import Ui_Form
 from analyzer import Analyzer
@@ -253,6 +257,10 @@ def startCli(argv):
     global videoStorage
     global connection
     
+
+
+
+    
     config = __import__('config')
     cli_sensor_list = 		getattr(config, 'cli_sensor_list', [])
     cli_experiment_list =   getattr(config, 'cli_experiment_list', [])
@@ -263,11 +271,12 @@ def startCli(argv):
         print "Start analyze experiment %s ..." % experiment
         for sensor in cli_sensor_list:
             print "Sensor %s" % sensor
+            pbar = ProgressBar(widgets=[Percentage(), Bar()], maxval=100).start()
             results = []
             videoStorage.open(experiment, sensor)
             frameCount = videoStorage.getFrameCount()
             for frameNum in xrange( frameCount ):
-                print "%s / %s" % (frameNum, frameCount)
+                pbar.update(frameNum * 100 / frameCount)
                 image = videoStorage.getFrame(frameNum)
                 matchPoint = analyzer.findObject(image[1])
                 # Add y coordinate of point to results
@@ -276,6 +285,7 @@ def startCli(argv):
                         videoStorage.getFrameId(frameNum) )  )
             save_results(results, connection, experiment, sensor)
             print "End analyze sensor %s" % sensor
+            pbar.finish()
         print "End analyze experiment %s" % experiment
         print "------------------------------"          
                 
