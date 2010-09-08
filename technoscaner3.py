@@ -173,7 +173,7 @@ def change_frame(frameNum):
         # Add y coordinate of point to results
         results.append(  (  videoStorage.getFrameTime(frameNum), 
                         pixmap.height() - matchPoint[1], 
-                        videoStorage.getFrameId(frameNum) )  )
+                        videoStorage.getFrameId(frameNum), matchPoint[0] )  )
 
         painter = QtGui.QPainter()
         painter.begin(pixmap)
@@ -204,20 +204,34 @@ def save_results_from_gui():
 
 def save_results(results, connection, expId, camId):
     cursor = connection.cursor()
+
     cursor.execute("""INSERT INTO results_directory 
         (type, description, experiment_id, analizator_id, sensor_id) 
         VALUES( %s, %s, %s, %s, %s);""", 
-        ("h", "h ts3", expId, 0, camId) )
+        ("x", "x ts3", expId, 0, camId) )
     
     cursor.execute("SELECT LAST_INSERT_ID()")
-    resultId = cursor.fetchone()[0]
+    resultIdX = cursor.fetchone()[0]
+
+    cursor.execute("""INSERT INTO results_directory 
+        (type, description, experiment_id, analizator_id, sensor_id) 
+        VALUES( %s, %s, %s, %s, %s);""", 
+        ("y", "y ts3", expId, 0, camId) )
+    
+    cursor.execute("SELECT LAST_INSERT_ID()")
+    resultIdY = cursor.fetchone()[0]
     
     for i, item in enumerate(results):
         cursor.execute("""INSERT INTO results 
             (time, value, frame_id, distance_from_origin, result_id) 
             VALUES (%s, %s, %s, %s, %s);""", 
-            (item[0], item[1], item[2], i, resultId) )
-    
+            (item[0], item[3], item[2], i, resultIdX) )
+        cursor.execute("""INSERT INTO results 
+            (time, value, frame_id, distance_from_origin, result_id) 
+            VALUES (%s, %s, %s, %s, %s);""", 
+            (item[0], item[1], item[2], i, resultIdY) )
+
+            
 
 class MainForm(QtGui.QWidget):
     def __init__(self, parent=None):
@@ -282,7 +296,7 @@ def startCli(argv):
                 # Add y coordinate of point to results
                 results.append(  (  videoStorage.getFrameTime(frameNum), 
                         image[0].height() - matchPoint[1], 
-                        videoStorage.getFrameId(frameNum) )  )
+                        videoStorage.getFrameId(frameNum), matchPoint[0] )  )
             save_results(results, connection, experiment, sensor)
             print "End analyze sensor %s" % sensor
             pbar.finish()
@@ -327,6 +341,6 @@ if __name__ == "__main__":
     videoStorage = DbFrameStorage(connection)
     app = QtGui.QApplication(sys.argv)
     
-    startCli(sys.argv)
+    startGui(sys.argv)
 
 
