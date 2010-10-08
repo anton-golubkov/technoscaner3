@@ -181,6 +181,7 @@ def change_frame(frameNum):
         painter.drawEllipse( matchPoint[0], matchPoint[1], 20,20 )
         painter.end()
     mainForm.ui.image.setPixmap(pixmap)
+    mainForm.ui.time.setText(videoStorage.getFrameTime(frameNum))
 
 def timer_tick():
     global mainForm

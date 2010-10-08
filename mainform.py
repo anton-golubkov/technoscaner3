@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'mainform.ui'
 #
-# Created: Wed Aug 18 22:20:46 2010
+# Created: Fri Oct  8 10:00:34 2010
 #      by: PyQt4 UI code generator 4.7.2
 #
 # WARNING! All changes made in this file will be lost!
@@ -38,6 +38,9 @@ class Ui_Form(object):
         self.saveResultsButton = QtGui.QPushButton(Form)
         self.saveResultsButton.setObjectName("saveResultsButton")
         self.verticalLayout_3.addWidget(self.saveResultsButton)
+        self.time = QtGui.QLabel(Form)
+        self.time.setObjectName("time")
+        self.verticalLayout_3.addWidget(self.time)
         spacerItem = QtGui.QSpacerItem(20, 40, QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Expanding)
         self.verticalLayout_3.addItem(spacerItem)
         self.templateImage = QtGui.QLabel(Form)
@@ -72,6 +75,7 @@ class Ui_Form(object):
         self.openButton.setText(QtGui.QApplication.translate("Form", "Open", None, QtGui.QApplication.UnicodeUTF8))
         self.selectTemplateButton.setText(QtGui.QApplication.translate("Form", "Select template", None, QtGui.QApplication.UnicodeUTF8))
         self.saveResultsButton.setText(QtGui.QApplication.translate("Form", "Save", None, QtGui.QApplication.UnicodeUTF8))
+        self.time.setText(QtGui.QApplication.translate("Form", "TextLabel", None, QtGui.QApplication.UnicodeUTF8))
         self.templateImage.setText(QtGui.QApplication.translate("Form", "Template", None, QtGui.QApplication.UnicodeUTF8))
         self.graphic.setText(QtGui.QApplication.translate("Form", "Graphic", None, QtGui.QApplication.UnicodeUTF8))
         self.playButton.setText(QtGui.QApplication.translate("Form", "Play", None, QtGui.QApplication.UnicodeUTF8))
