@@ -16,6 +16,8 @@ from progressbar import ProgressBar, Percentage, Bar
 
 from mainform import Ui_Form
 from analyzer import Analyzer
+from chessboard_analyzer import ChessboardAnalyzer
+from update_results_time import *
 
 ### Global variables ###
 
@@ -29,7 +31,7 @@ connection = None
 videoStorage = None
 
 # Image analyzer
-analyzer = None
+analyzer = ChessboardAnalyzer()
 
 # Timer interval, ms
 timerInterval = 10
@@ -231,7 +233,7 @@ def save_results(results, connection, expId, camId):
             (time, value, frame_id, distance_from_origin, result_id) 
             VALUES (%s, %s, %s, %s, %s);""", 
             (item[0], item[1], item[2], i, resultIdY) )
-
+    update_results_time(connection, expId)
             
 
 class MainForm(QtGui.QWidget):
@@ -280,8 +282,8 @@ def startCli(argv):
     cli_sensor_list = 		getattr(config, 'cli_sensor_list', [])
     cli_experiment_list =   getattr(config, 'cli_experiment_list', [])
     cli_template_image = 	getattr(config, 'cli_template_image', '')
-    template = cv.LoadImage(cli_template_image, cv.CV_LOAD_IMAGE_GRAYSCALE)
-    analyzer = Analyzer(template)
+#    template = cv.LoadImage(cli_template_image, cv.CV_LOAD_IMAGE_GRAYSCALE)
+    analyzer = ChessboardAnalyzer()
     for experiment in cli_experiment_list:
         print "Start analyze experiment %s ..." % experiment
         for sensor in cli_sensor_list:
@@ -343,5 +345,6 @@ if __name__ == "__main__":
     app = QtGui.QApplication(sys.argv)
     
     startGui(sys.argv)
+    #startCli(sys.argv)
 
 
